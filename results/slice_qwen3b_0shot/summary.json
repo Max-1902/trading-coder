@@ -1,0 +1,340 @@
+{
+  "run": "slice_qwen3b_0shot",
+  "n_samples": 8,
+  "overall": {
+    "n_tasks": 8,
+    "pass@1": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "run_rate": [
+      0.5,
+      0.125,
+      0.875
+    ],
+    "correct_rate": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "lookahead_rate_among_running": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "by_split": {
+    "test_id": {
+      "n_tasks": 6,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.3333333333333333,
+        0.0,
+        0.6666666666666666
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "test_ood": {
+      "n_tasks": 2,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "by_family": {
+    "bollinger": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "breakout": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        NaN,
+        NaN,
+        NaN
+      ]
+    },
+    "holding": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        NaN,
+        NaN,
+        NaN
+      ]
+    },
+    "ma_cross": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "oscillator": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        NaN,
+        NaN,
+        NaN
+      ]
+    },
+    "stop_tp": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        NaN,
+        NaN,
+        NaN
+      ]
+    },
+    "trailing": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "zscore": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "by_difficulty": {
+    "1": {
+      "n_tasks": 1,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "2": {
+      "n_tasks": 4,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.5,
+        0.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "3": {
+      "n_tasks": 3,
+      "pass@1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "run_rate": [
+        0.3333333333333333,
+        0.0,
+        1.0
+      ],
+      "correct_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lookahead_rate_among_running": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "categories": {
+    "wrong_signals": 4,
+    "exception": 4
+  },
+  "extract_methods": {
+    "single_block": 8
+  },
+  "hit_max_tokens": 0
+}

@@ -7,8 +7,61 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 - **Phases 0–2 done.** Harness + benchmark: 159/159 tests pass.
 - Benchmark: 100 test tasks (72 Test-ID over 8 families, 28 Test-OOD over Bollinger + trailing stop);
   3,200 training tasks generated; leakage check clean.
-- Next: Phase 3 baselines. Needs the Qwen 1.5B and 7B downloads (~5.2 GB) and a small 5–10 task
-  slice end to end first.
+- Phase 3 (baselines): pipeline built and checked end to end on an 8-task slice with all three
+  models. Full runs not done yet. I start them myself with gentle settings, one model at a time
+  (`scripts/run_baseline.sh`).
+
+## Phase 3: baselines (in progress)
+
+**Pipeline.** `gen/sample.py` (batched MLX generation; config, git commit and versions logged next
+to the outputs; refuses to overwrite a run folder) → `gen/extract.py` (fenced, multi-block, unclosed
+and no-fence completions; never edits the code) → `eval/run_eval.py` (scores, pass@1, pass@k,
+run rate, look-ahead rate among running samples, 95% bootstrap CIs over tasks, by split, family and
+difficulty) → `eval/report.py` (side-by-side table, paired pass@1 difference vs a baseline) →
+`eval/failures.py` (fixed random sample of 30 failures to read and label by hand).
+3-shot uses three fixed training tasks (MA cross, oscillator, stop/TP, all long/short) as earlier
+chat turns; they are leakage-checked like all training data.
+
+**Models.** The Qwen2.5-Coder-7B (4-bit) is downloaded. The 1.5B waits for Phase 6. To free disk
+space I deleted the 8-bit Llama copy (`llama-mlx-8bit`, 5 GB); the brief rules out 8-bit and nothing
+loaded it.
+
+**pandas pinned to 2.3.3 (was 3.1.1).** Reading the first slice's failures turned up two pandas 3
+changes that hit code these models write all the time:
+- `positions[i]` on a DatetimeIndex Series raises `KeyError: 0` (pandas 2 falls back to positional
+  access with a warning). 2 of the first 8 failures were this error, and it hid the logic errors
+  underneath.
+- `df['position'].iloc[i] = 1` (chained assignment) *silently does nothing* under pandas 3
+  copy-on-write. The trailing-stop solution stayed all zero without any error.
+The models learned pandas from pre-3.0 code, and the benchmark asks about strategy logic, not about
+an API break, so the harness now runs pandas 2.3.3. All 164 tests still pass, and the rebuilt
+benchmark is byte-identical. `summary.json` records the pandas/numpy versions. The first slice run
+(`results/slice_qwen3b_0shot`, pandas 3) is kept for the record but is not comparable.
+
+**Slice (8 tasks, one per family; pipeline check only, CIs are meaningless at n=8).**
+
+| Run | pass@1 | runs | Categories |
+|---|---|---|---|
+| Qwen 3B, 0-shot | 0/8 | 6/8 | 6 wrong_signals, 2 exception |
+| Qwen 3B, 3-shot | 3/8 | 5/8 | 3 pass, 2 exception, 2 wrong, 1 syntax |
+| Qwen 7B, 0-shot | 1/8 | 7/8 | 5 wrong, 1 look-ahead, 1 exception, 1 pass |
+| Llama 8B, 0-shot | 0/8 | 3/8 | 5 exception, 3 wrong |
+
+Failures I read (all real model errors, not benchmark issues): EMA without `min_periods` (warm-up
+not 0); "crosses above" written as "is above"; sample std where the prompt says population std;
+state never carried between bars (checks `positions[i]`, which is always 0 at that point); early
+`return` that leaves everything flat; `df.at[i, ...]` with an integer on a DatetimeIndex; `NameError`.
+- *A look-ahead bug that isn't `shift(-1)`.* The 7B's stop-loss solution tracks its state correctly
+  in a loop, then returns `pd.Series(position, index=df.index)`, which broadcasts the **final**
+  state to every bar. Every past position then depends on the last bar. The checker flagged it at
+  36/48 cuts. I hadn't put this kind of bug in the hand-written broken-solution tests.
+
+**GPU / memory incident.** I ran the four slice runs back to back with batch size 8. With a VM and
+VS Code also open, the M2 Pro sat at 100% GPU and 93 °C, with 14.2/16 GB RAM in use and 5.6 GB of
+swap. Thermals stayed "Normal" (Apple Silicon throttles before damage), but the swapping was the real
+problem. Changes: generation defaults are now batch size 2 and max 768 tokens (the slice's longest
+output was 564), there's an optional `--pause` between batches, one model per command, and I start
+GPU jobs myself. Peak MLX memory at batch 8 was 5.5 GB (7B) and 6.3 GB (Llama 8B).
 
 ## Phase 2: benchmark
 

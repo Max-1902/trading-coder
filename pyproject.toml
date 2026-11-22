@@ -3,7 +3,7 @@ name = "trading-coder"
 version = "0.1.0"
 description = "Fine-tuning a small local LLM (MLX) to write correct trading-strategy code"
 requires-python = ">=3.11"
-dependencies = ["mlx-lm>=0.32", "numpy>=2.0", "pandas>=2.2", "pytest>=8"]
+dependencies = ["mlx-lm>=0.32", "numpy>=2.0", "pandas==2.3.3", "pytest>=8"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
