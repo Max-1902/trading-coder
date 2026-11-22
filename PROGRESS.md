@@ -9,7 +9,7 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 
 ## Setup decisions
 
-- **Separate project.** Standalone repo next to `llama-project` (the RAG study). The only
+- **Separate project.** Own git repo in `llama-project/trading-coder/`, next to the RAG study (`rag/`) but tracked separately (excluded from the RAG repo via `.git/info/exclude`). The only
   thing shared is the Llama-3.1-8B-Instruct 4-bit weights folder, read by path
   (`gen/models.py`, override with `LLAMA_8B_PATH`). Nothing in the RAG project is modified.
 - **Environment:** own `.venv` (Python 3.12, uv). mlx 0.32.4, mlx-lm 0.32.2, numpy 2.5.5,
