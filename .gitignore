@@ -9,3 +9,4 @@ adapters/
 *.safetensors
 # working notes, not part of the published project
 BRIEF.md
+data/

@@ -17,7 +17,9 @@ Status: work in progress. See [PROGRESS.md](PROGRESS.md) for the running log.
 ```bash
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
-.venv/bin/python -m pytest -q      # harness tests
+.venv/bin/python -m pytest -q                          # harness + benchmark tests
+.venv/bin/python -m gen.make_train --per-family 400     # training tasks -> data/
+.venv/bin/python -m bench.leakage data/train_tasks.jsonl
 ```
 
 ## Layout
@@ -28,6 +30,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | `harness/sandbox.py` | AST import/call allowlist + sandboxed subprocess with timeout, no network, no file writes |
 | `harness/checks.py` | runs / correct / no-look-ahead scoring and failure categories |
 | `harness/backtest.py` | sanity stats only (Sharpe, drawdown, turnover), never a score |
-| `bench/` | test tasks and per-family generators + reference implementations |
+| `bench/families/` | one module per strategy family: parameter grid, prompt phrasings, rules, pandas reference, independent loop implementation |
+| `bench/tasks_test_id.jsonl`, `bench/tasks_test_ood.jsonl` | 72 in-distribution and 28 out-of-distribution test tasks (`python -m bench.build`) |
+| `bench/leakage.py` | fails if any test prompt, parameter combination or parameter value appears in training data |
+| `gen/make_train.py` | training tasks from the train split (`python -m gen.make_train`) |
 | `gen/`, `train/`, `eval/` | sampling, rejection filtering, LoRA config, evaluation |
 | `results/` | one folder per run with config, raw generations and scores |

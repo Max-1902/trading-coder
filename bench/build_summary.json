@@ -1,0 +1,77 @@
+{
+  "ma_cross": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "1": 9
+    }
+  },
+  "oscillator": {
+    "kept": 9,
+    "rejected": {
+      "trivial": 1
+    },
+    "difficulty": {
+      "2": 9
+    }
+  },
+  "breakout": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "2": 9
+    }
+  },
+  "zscore": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "2": 9
+    }
+  },
+  "vol_filter": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "2": 9
+    }
+  },
+  "stop_tp": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "3": 9
+    }
+  },
+  "holding": {
+    "kept": 9,
+    "rejected": {},
+    "difficulty": {
+      "3": 9
+    }
+  },
+  "combo": {
+    "kept": 9,
+    "rejected": {
+      "trivial": 3
+    },
+    "difficulty": {
+      "2": 6,
+      "3": 3
+    }
+  },
+  "bollinger": {
+    "kept": 14,
+    "rejected": {},
+    "difficulty": {
+      "2": 14
+    }
+  },
+  "trailing": {
+    "kept": 14,
+    "rejected": {},
+    "difficulty": {
+      "3": 14
+    }
+  }
+}

@@ -4,8 +4,75 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 
 ## Current state (2026-11-22)
 
-- **Phase 0 (setup): done.** Phase 1 (harness): done, 55/55 tests pass.
-- Next: Phase 2, the benchmark (families, ~100 test tasks, Test-ID / Test-OOD splits, leakage check).
+- **Phases 0–2 done.** Harness + benchmark: 159/159 tests pass.
+- Benchmark: 100 test tasks (72 Test-ID over 8 families, 28 Test-OOD over Bollinger + trailing stop);
+  3,200 training tasks generated; leakage check clean.
+- Next: Phase 3 baselines. Needs the Qwen 1.5B and 7B downloads (~5.2 GB) and a small 5–10 task
+  slice end to end first.
+
+## Phase 2: benchmark
+
+**Families (`bench/families/`, one module each).** Each family maps a parameter dict to a prompt,
+a pandas reference (also the SFT target for training source A), and a second implementation in
+plain Python loops (`alt`), written differently on purpose.
+
+| Family | Split | Difficulty | Variants |
+|---|---|---|---|
+| ma_cross | ID | 1 | close vs MA / fast vs slow; SMA / EMA; long-only / long-short |
+| oscillator | ID | 2 | RSI (Wilder) / stochastic %K with hysteresis |
+| breakout | ID | 2 | N-bar high/low or highest close; stop-and-reverse / M-bar channel exit |
+| zscore | ID | 2 | entry/exit bands around SMA ± k·STD |
+| vol_filter | ID | 2 | trend signal gated by VOL(m) < threshold |
+| stop_tp | ID | 3 | SMA cross / breakout entry, fixed stop-loss + take-profit |
+| holding | ID | 3 | big move / new N-bar extreme / RSI entry, hold exactly H bars |
+| combo | ID | 2–3 | trend filter + MA cross (stateless) / RSI pullback with trend exit (stateful) |
+| bollinger | OOD | 2 | mean reversion / breakout, population std |
+| trailing | OOD | 3 | breakout / SMA cross entry, % trailing stop on closes |
+
+Bollinger mean reversion is close to the z-score family (population std instead of sample std,
+exit at the middle band), so it is a *near* OOD family; trailing stops are the *far* one. I'll keep
+that in mind when reading OOD results rather than treating the two as equal.
+
+**Prompt format.** Fixed interface preamble → one-sentence strategy summary (the part that varies
+in phrasing) → exact rules → definitions of only the indicators used. Conventions spelled out in
+every prompt: warm-up = 0, the strategy starts flat, the cross definition, at most one position
+change per bar (no exit and re-entry on the same bar), comparison strictness, sample vs population
+std, and the EMA/RSI initialisation.
+
+**Conventions forced by float behaviour.**
+- pandas' rolling std of an exactly flat window is ~6e-7, not 0 (measured on the flat-stretch series,
+  both ddof=0 and 1). A rule like "if std is 0, go flat" would split correct pandas code from correct
+  numpy code. So the z-score rules are in band form (`close < m - k*s`) with strict entries away from
+  the mean and non-strict exits toward it. Those decisions come out the same whether s is 0 or
+  6e-7.
+- pandas EMA and a plain loop differ by up to 2e-13. This only matters on exact ties, so it is
+  handled by the agreement check below rather than by wording.
+
+**Build (`bench/build.py`).** Test parameters are sampled per family with fixed seeds. A task is kept
+only if (1) its reference passes the full harness against itself, (2) it agrees bar for bar with the
+loop implementation on all 9 hidden series, and (3) it is non-trivial: at least 6 position changes,
+at least 3% exposure, and every allowed side actually used. Result: 0 agreement failures and 4
+candidates rejected as trivial (an RSI system and three RSI-pullback combos that were in the market
+under 2% of the time).
+- To check that the agreement test has teeth, I bumped one window parameter by +1 in the loop
+  implementation for every task. All 100 then mismatch.
+- *First build was lopsided.* With 9 random draws per family, z-score came out 8 long-only / 1
+  long-short, combo had only 2 stateful tasks, and holding had 1 short task. Now each categorical variant
+  gets a quota (`ceil(n_test / n_variants)`). Result: Test-ID difficulty 1/2/3 = 9/42/21.
+
+**Splits and leakage (`bench/leakage.py`).** Every third value on each numeric grid is test-only;
+phrasings 3–4 are test-only; OOD families are never generated for training. The check fails the
+build on: a normalized test prompt in train, the same family+parameter combination, any shared
+numeric value per (family, parameter), a shared phrasing, or an OOD family in train.
+- *First run found a real leak.* In `holding`, the key `n` meant the N-bar window in one variant
+  and the RSI period in another, with different grids, so RSI period 5 (test) collided with window 5
+  (train). I renamed the RSI parameter to `rsi_n` so each key has one meaning and one split. After
+  that: 0 violations.
+- The tests also plant leaks (a copied test task, a reworded copy with the same parameters, an OOD
+  task in train) and assert that each one is caught.
+
+**Training tasks (`gen/make_train.py`).** 400 per ID family = 3,200, all prompts distinct,
+regenerated deterministically (`data/` is not committed).
 
 ## Setup decisions
 
