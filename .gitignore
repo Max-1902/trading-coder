@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+.vscode/
+.claude/
+# LoRA adapters and large intermediate files
+adapters/
+*.safetensors
+# working notes, not part of the published project
+BRIEF.md
