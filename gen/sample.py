@@ -41,6 +41,7 @@ def main():
     ap.add_argument("--model", required=True, help="key in gen.models.MODELS or a path / HF id")
     ap.add_argument("--adapter", default=None)
     ap.add_argument("--split", default="all", choices=["test_id", "test_ood", "all"])
+    ap.add_argument("--tasks-file", default=None, help="JSONL of tasks to sample instead of the benchmark")
     ap.add_argument("--ids", default=None, help="comma-separated task ids (slice)")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--shots", type=int, default=0)
@@ -66,7 +67,10 @@ def main():
     from gen.models import MODELS
     from gen.prompts import fewshot_examples, messages
 
-    tasks = load_tasks(a.split)
+    if a.tasks_file:
+        tasks = [json.loads(l) for l in Path(a.tasks_file).read_text().splitlines() if l.strip()]
+    else:
+        tasks = load_tasks(a.split)
     if a.ids:
         want = a.ids.split(",")
         tasks = [t for t in tasks if t["id"] in want]

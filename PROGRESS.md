@@ -17,6 +17,26 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 - Next: Phase 5, rejection sampling (self-taught data) — tests whether training on the model's own
   verified code generalizes better than on the reference template.
 
+## Phase 5: rejection sampling (setup)
+
+- **Design (`gen/rs.py`, `scripts/rs_round.sh`).** Each round draws 25 *fresh* training tasks per
+  in-distribution family (200 tasks; rounds never share tasks; leakage-checked), samples k=8 answers per
+  task at T=0.8 (base 3B in round 1, the previous round's adapter afterwards), keeps only samples that
+  pass every check (runs, exact match, no look-ahead, deterministic), dedupes by normalized AST, keeps at
+  most 4 per task, and trains a new adapter **from the base model** on the kept samples of all rounds
+  so far. Training uses exactly the SFT-A config (100 steps, same LoRA, schedule and data format), so
+  the comparison is between data sources, not training budgets.
+- The cap of 4 per task stops easy tasks from dominating. Families where the model never passes get no
+  data; the per-family yield is logged each round (`rs_stats.json`).
+- **Checked before any GPU run:** a fake-generation test (reference ×2, reference + comment, broken
+  solution per task) keeps exactly 1 per task and rejects the broken one. The round script resumes from
+  the last finished step.
+  - *Bug caught before it ran:* macOS ships bash 3.2, where `"${ADAPTER[@]}"` on an empty array under
+    `set -u` aborts. That is exactly round 1 (no adapter yet), so the round would have crashed at the
+    sampling step. Fixed with `${ADAPTER[@]+"${ADAPTER[@]}"}`.
+- `results/pass5_qwen3b_0shot` is an interrupted pass@5 run (8/500 samples). It's not used and has to
+  be deleted before pass@5 is rerun.
+
 ## Phase 4 results: LoRA on reference solutions (SFT-A)
 
 **Training** (`adapters/sft_a`, 100 steps, ~17 min incl. validation):
