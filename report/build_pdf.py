@@ -112,7 +112,7 @@ def code(text: str, width: int = 98):
     for ln in text.strip("\n").splitlines():
         indent = len(ln) - len(ln.lstrip())
         lines += textwrap.wrap(ln, width, subsequent_indent=" " * (indent + 4), drop_whitespace=False) or [""]
-    story.append(Preformatted("\n".join(lines), CODE))
+    story.append(KeepTogether([Preformatted("\n".join(lines), CODE)]))
 
 
 def photos(section: str):
@@ -559,8 +559,39 @@ p("The complete prompt of test task holding-04 (difficulty 3), followed by its r
 code(task["prompt"])
 code(task["reference"])
 
+def glue_headings(flow: list) -> list:
+    """Before each heading, break the page only if the heading and the element after it don't fit."""
+    import io
+
+    from reportlab.pdfgen.canvas import Canvas
+    from reportlab.platypus import CondPageBreak
+
+    canv = Canvas(io.BytesIO())
+    width, max_h = letter[0] - 2 * inch, letter[1] - 1.8 * inch
+    def height(fl) -> float:
+        if hasattr(fl, "_content"):  # KeepTogether reports a huge height on purpose; measure its parts
+            return sum(height(c) for c in fl._content)
+        h = fl.wrapOn(canv, width, max_h)[1]
+        style = getattr(fl, "style", None)
+        return h + (getattr(style, "spaceBefore", 0) + getattr(style, "spaceAfter", 0) if style else 0)
+
+    is_heading = lambda fl: isinstance(fl, Paragraph) and fl.style.name in ("h1", "h2")  # noqa: E731
+    out = []
+    for i, f in enumerate(flow):
+        if is_heading(f) and (i == 0 or not is_heading(flow[i - 1])):
+            j, need = i, 0.0
+            while j < len(flow) and is_heading(flow[j]):  # the heading run ...
+                need += height(flow[j])
+                j += 1
+            if j < len(flow):  # ... plus the first element after it
+                need += height(flow[j])
+            out.append(CondPageBreak(min(need + 4, max_h)))
+        out.append(f)
+    return out
+
+
 doc = SimpleDocTemplate(str(OUT), pagesize=letter, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=0.9 * inch,
                         bottomMargin=0.9 * inch, title="Fine-Tuning a 3B Code Model to Write Correct Trading Strategies",
                         author=AUTHOR)
-doc.build(story, onFirstPage=footer, onLaterPages=footer)
+doc.build(glue_headings(story), onFirstPage=footer, onLaterPages=footer)
 print(f"wrote {OUT}")
