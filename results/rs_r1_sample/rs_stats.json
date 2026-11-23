@@ -1,0 +1,67 @@
+{
+  "round": 1,
+  "run": "rs_r1_sample",
+  "samples": 1600,
+  "sample_pass_rate": 0.065,
+  "kept_unique": 101,
+  "by_family": {
+    "ma_cross": {
+      "sample_pass_rate": 0.285,
+      "tasks_solved": "22/25",
+      "kept": 54
+    },
+    "oscillator": {
+      "sample_pass_rate": 0.01,
+      "tasks_solved": "2/25",
+      "kept": 2
+    },
+    "breakout": {
+      "sample_pass_rate": 0.01,
+      "tasks_solved": "2/25",
+      "kept": 2
+    },
+    "zscore": {
+      "sample_pass_rate": 0.0,
+      "tasks_solved": "0/25",
+      "kept": 0
+    },
+    "vol_filter": {
+      "sample_pass_rate": 0.09,
+      "tasks_solved": "15/25",
+      "kept": 18
+    },
+    "stop_tp": {
+      "sample_pass_rate": 0.0,
+      "tasks_solved": "0/25",
+      "kept": 0
+    },
+    "holding": {
+      "sample_pass_rate": 0.0,
+      "tasks_solved": "0/25",
+      "kept": 0
+    },
+    "combo": {
+      "sample_pass_rate": 0.125,
+      "tasks_solved": "12/25",
+      "kept": 25
+    }
+  },
+  "categories": {
+    "exception": 663,
+    "wrong_signals": 445,
+    "banned_import": 114,
+    "pass": 104,
+    "syntax_error": 98,
+    "module_error": 79,
+    "lookahead": 42,
+    "wrong_length": 15,
+    "wrong_index": 11,
+    "nan": 11,
+    "not_series": 11,
+    "no_function": 2,
+    "banned_call": 2,
+    "bad_values": 1,
+    "bad_dtype": 1,
+    "timeout": 1
+  }
+}

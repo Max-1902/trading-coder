@@ -56,10 +56,12 @@ def pool(round_: int, src: str = "data/train_tasks.jsonl") -> Path:
 
 
 def norm(code: str) -> str:
+    """Dedupe key: code with comments/formatting normalized. Falls back to whitespace-only
+    normalization for code ast can't round-trip (e.g. a degenerate 300-deep method chain)."""
     try:
         return ast.unparse(ast.parse(code))
-    except SyntaxError:
-        return code
+    except (SyntaxError, RecursionError, ValueError):
+        return " ".join(code.split())
 
 
 def filter_round(round_: int, run: Path, workers: int = 6) -> None:
@@ -74,16 +76,21 @@ def filter_round(round_: int, run: Path, workers: int = 6) -> None:
         return {"task_id": g["task_id"], "sample": g["sample"], "code": code, "extract": method,
                 "passed": r.passed, "category": r.category}
 
-    with ThreadPoolExecutor(workers) as ex:
-        rows = list(ex.map(one, gens))
-    with open(run / "scores.jsonl", "w") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+    scores = run / "scores.jsonl"
+    rows = load_jsonl(scores) if scores.exists() else []
+    if len(rows) != len(gens):  # (re)score unless a complete scores file already exists
+        with ThreadPoolExecutor(workers) as ex:
+            rows = list(ex.map(one, gens))
+        with open(scores, "w") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
 
     kept, seen = [], defaultdict(set)
     for r in sorted(rows, key=lambda r: (r["task_id"], r["sample"])):
+        if not r["passed"]:
+            continue
         key = norm(r["code"])
-        if r["passed"] and key not in seen[r["task_id"]] and len(seen[r["task_id"]]) < MAX_PER_TASK:
+        if key not in seen[r["task_id"]] and len(seen[r["task_id"]]) < MAX_PER_TASK:
             seen[r["task_id"]].add(key)
             kept.append({"task_id": r["task_id"], "family": tasks[r["task_id"]]["family"],
                          "prompt": tasks[r["task_id"]]["prompt"], "code": r["code"]})
