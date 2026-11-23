@@ -19,7 +19,15 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
   never reaches the stateful families, Test-OOD stays 0, and round 2 **raised look-ahead from 1% to 22%**
   of running solutions, although every training sample passed the look-ahead check.
 - Phase 6 (stretch) skipped for now. The 7B LoRA is the open question (the only model with OOD signal).
-- Next: Phase 7 report.
+- **Phase 7 (report): first version done.** `Trading-Coder-LoRA-Report.pdf` (13 pages, plain
+  technical-report layout), README with results and figures. Figures and every number in the tables are
+  generated from `results/*/summary.json` (`report/make_figures.py`, `report/build_pdf.py`), so a rerun
+  of the report can't drift from the data. Own photos go in `report/photos/` and are listed in
+  `PHOTOS` in `build_pdf.py`.
+- While drawing the look-ahead illustration I noticed that at one fixed cut point (k = 250, crash
+  replacement) the `shift(-1)` bug does *not* change bar k, because the signal at k+1 happens to be the
+  same. The spike replacement at the same cut does reveal it. That's the reason the harness uses ~96 cut
+  points and two replacement directions per solution; a single cut would miss it.
 
 ## Phase 5 results: rejection sampling
 
