@@ -1,0 +1,22 @@
+# Phase 4: LoRA SFT on reference solutions (training source A), Qwen2.5-Coder-3B 4-bit.
+# Train: scripts/train_lora.sh train/lora_sft_a.yaml sft_a
+model: mlx-community/Qwen2.5-Coder-3B-Instruct-4bit
+train: true
+data: data/sft_a
+fine_tune_type: lora
+optimizer: adamw
+mask_prompt: true            # loss on the answer only, not the (long, repetitive) prompt
+num_layers: 16               # top 16 of 36 layers
+lora_parameters: {rank: 16, dropout: 0.0, scale: 20.0}
+batch_size: 4
+grad_accumulation_steps: 1
+iters: 100                   # 400 examples; timing test: val loss 0.696 -> 0.049 by step 20
+learning_rate: 1.0e-4
+lr_schedule: {name: cosine_decay, warmup: 10, warmup_init: 1.0e-6, arguments: [1.0e-4, 100, 1.0e-6]}
+max_seq_length: 1024         # longest example is 961 tokens
+grad_checkpoint: true        # same gradients, lower memory (no swapping on 16 GB)
+steps_per_report: 10
+steps_per_eval: 25
+val_batches: 5
+save_every: 25               # checkpoints every 25 steps (pick only by validation loss)
+seed: 0

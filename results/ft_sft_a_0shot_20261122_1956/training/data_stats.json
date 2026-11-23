@@ -1,0 +1,36 @@
+{
+  "train": {
+    "n": 3051,
+    "families": {
+      "stop_tp": 381,
+      "breakout": 386,
+      "oscillator": 381,
+      "ma_cross": 383,
+      "zscore": 380,
+      "combo": 379,
+      "vol_filter": 381,
+      "holding": 380
+    },
+    "tokens_mean": 623.6,
+    "tokens_max": 961,
+    "tokens_total": 1902756
+  },
+  "valid": {
+    "n": 149,
+    "families": {
+      "breakout": 14,
+      "combo": 21,
+      "holding": 20,
+      "ma_cross": 17,
+      "oscillator": 19,
+      "stop_tp": 19,
+      "vol_filter": 19,
+      "zscore": 20
+    },
+    "tokens_mean": 613.4,
+    "tokens_max": 957,
+    "tokens_total": 91399
+  },
+  "verified_references": 160,
+  "source_tasks": "data/train_tasks.jsonl"
+}
