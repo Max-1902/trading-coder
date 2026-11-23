@@ -20,7 +20,11 @@ Status: work in progress. See [PROGRESS.md](PROGRESS.md) for the running log.
 | Qwen2.5-Coder-7B | 0.11 [0.05, 0.17] | 0.53 [0.43, 0.63] |
 | Llama-3.1-8B-Instruct | 0.10 [0.05, 0.16] | 0.40 [0.30, 0.50] |
 
-The 3B's main failure is not formatting but state handling: it doesn't carry a position from one
+**After LoRA fine-tuning on reference solutions (3B, 100 steps, ~17 min):** pass@1 0.67 [0.58, 0.76]:
+0.93 on in-distribution tasks, but 0.00 on the two held-out strategy families. On those it forces
+each new strategy into the nearest template it was trained on.
+
+The 3B base model's main failure is not formatting but state handling: it doesn't carry a position from one
 bar to the next (13 of 30 labelled failures), followed by pandas indexing/API mistakes (9 of 30).
 
 ## Setup

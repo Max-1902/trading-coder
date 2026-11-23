@@ -11,7 +11,56 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
   Best non-fine-tuned model: Qwen 7B 3-shot at pass@1 0.53 [0.43, 0.63]. The fine-tuning target
   (Qwen 3B) gets 0.17 zero-shot and 0.26 3-shot.
 - Still open for Phase 3: pass@5 with sampling (T=0.8) for the 3B and the best baseline.
-- Next: Phase 4, LoRA on reference solutions (3B).
+- **Phase 4 (LoRA on reference solutions): done.** 3B + SFT-A adapter: pass@1 **0.67 [0.58, 0.76]**,
+  Test-ID 0.93 [0.86, 0.99], Test-OOD **0.00**. That beats the best non-fine-tuned model (7B 3-shot,
+  0.53) by +0.14 [+0.01, +0.27] overall, entirely through Test-ID; on Test-OOD it is far behind (0 vs 0.36).
+- Next: Phase 5, rejection sampling (self-taught data) — tests whether training on the model's own
+  verified code generalizes better than on the reference template.
+
+## Phase 4 results: LoRA on reference solutions (SFT-A)
+
+**Training** (`adapters/sft_a`, 100 steps, ~17 min incl. validation):
+
+| Step | 1 | 25 | 50 | 75 | 100 |
+|---|---|---|---|---|---|
+| Validation loss | 0.663 | 0.035 | 0.004 | 0.003 | 0.002 |
+
+Training loss ended at 0.001. A validation loss of 0.002 on held-out parameter combinations means the
+model reproduces the reference template almost token for token. The final adapter was evaluated; no
+checkpoint selection was done.
+
+**Evaluation** (`results/ft_sft_a_0shot_*`, zero-shot, greedy):
+
+| | pass@1 | Test-ID | Test-OOD | d1 | d2 | d3 | Runs | Look-ahead |
+|---|---|---|---|---|---|---|---|---|
+| 3B base, 0-shot | 0.17 | 0.24 | 0.00 | 0.78 | 0.18 | 0.00 | 0.82 | 0.05 |
+| 7B base, 3-shot (best baseline) | 0.53 | 0.60 | 0.36 | 0.44 | 0.64 | 0.37 | 0.85 | 0.01 |
+| **3B + SFT-A, 0-shot** | **0.67** [0.58, 0.76] | **0.93** [0.86, 0.99] | **0.00** | 1.00 | 0.70 | 0.54 | 0.81 | 0.00 |
+
+- vs 3B base: +0.50. vs 7B 3-shot: +0.14 [+0.01, +0.27], so the CI just excludes 0. The whole gain
+  comes from Test-ID.
+- **Test-ID by family:** 1.00 on ma_cross, oscillator, breakout, zscore, vol_filter and **holding**
+  (0.00 for every baseline), 0.78 stop_tp, 0.67 combo. The state-handling failure that dominated the
+  base model's taxonomy is gone on families it has seen.
+- **The 5 Test-ID failures** are all slips inside a memorized template: a long/short stop-loss that
+  uses `cross_down` but never defines it (the template line for the short cross is dropped, 2×);
+  `series > x and x > y` on Series instead of `&` (2×, combo); one wrong combo condition.
+- **Test-OOD: 0/28. It forces every new strategy into the nearest trained template.** I checked all 28:
+  - *Trailing stop (0/14):* not one solution tracks the highest close since entry, which is the
+    defining part of a trailing stop and appears in no trained family. 7/14 reuse the breakout
+    family's channel exit (`c[t] < prior_low[t]`) instead; the rest write a stop/state skeleton
+    without the peak.
+  - *Bollinger (0/14):* 13/14 drop the band width k, none uses population std, and 8/14 refer to the
+    z-score template's variables `m[t]`/`s[t]` without defining them (the `NameError`s).
+  - The 3B base model was also at 0.00 zero-shot on these families, so SFT didn't *lose* OOD
+    ability in absolute terms, but it gained none while the 7B gets 0.36 with examples.
+- *Against the hypotheses:* "gains on Test-ID larger than Test-OOD" holds in the most extreme form
+  (+0.69 vs +0.00). "Fine-tuning mostly fixes format/convention errors" is wrong here: format was never
+  the problem. What SFT-A did was install one code template per family, including the state logic.
+  That fixes in-distribution logic errors but works by recall, not by reading the rules.
+- Open question for Phase 5: is the OOD collapse caused by the *reference* style (a single rigid
+  template per family, val loss → 0.002), or would it happen with any SFT? Rejection-sampled data is
+  in the model's own, more varied style.
 
 ## Phase 4: LoRA on reference solutions (setup)
 
