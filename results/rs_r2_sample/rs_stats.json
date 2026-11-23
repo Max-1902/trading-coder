@@ -1,0 +1,63 @@
+{
+  "round": 2,
+  "run": "rs_r2_sample",
+  "samples": 1600,
+  "sample_pass_rate": 0.2537,
+  "kept_unique": 282,
+  "by_family": {
+    "ma_cross": {
+      "sample_pass_rate": 0.76,
+      "tasks_solved": "25/25",
+      "kept": 97
+    },
+    "oscillator": {
+      "sample_pass_rate": 0.095,
+      "tasks_solved": "9/25",
+      "kept": 18
+    },
+    "breakout": {
+      "sample_pass_rate": 0.035,
+      "tasks_solved": "6/25",
+      "kept": 7
+    },
+    "zscore": {
+      "sample_pass_rate": 0.04,
+      "tasks_solved": "5/25",
+      "kept": 8
+    },
+    "vol_filter": {
+      "sample_pass_rate": 0.745,
+      "tasks_solved": "25/25",
+      "kept": 100
+    },
+    "stop_tp": {
+      "sample_pass_rate": 0.0,
+      "tasks_solved": "0/25",
+      "kept": 0
+    },
+    "holding": {
+      "sample_pass_rate": 0.0,
+      "tasks_solved": "0/25",
+      "kept": 0
+    },
+    "combo": {
+      "sample_pass_rate": 0.355,
+      "tasks_solved": "13/25",
+      "kept": 52
+    }
+  },
+  "categories": {
+    "wrong_signals": 807,
+    "pass": 406,
+    "exception": 230,
+    "syntax_error": 79,
+    "lookahead": 32,
+    "nan": 23,
+    "not_series": 12,
+    "wrong_length": 4,
+    "banned_call": 2,
+    "bad_values": 2,
+    "timeout": 2,
+    "banned_import": 1
+  }
+}

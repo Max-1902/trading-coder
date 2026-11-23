@@ -1,0 +1,16 @@
+{
+  "rounds": [
+    1,
+    2
+  ],
+  "train": 358,
+  "valid": 25,
+  "by_family": {
+    "breakout": 9,
+    "combo": 77,
+    "ma_cross": 151,
+    "oscillator": 20,
+    "vol_filter": 118,
+    "zscore": 8
+  }
+}

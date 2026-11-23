@@ -24,6 +24,10 @@ Status: work in progress. See [PROGRESS.md](PROGRESS.md) for the running log.
 0.93 on in-distribution tasks, but 0.00 on the two held-out strategy families. On those it forces
 each new strategy into the nearest template it was trained on.
 
+**Self-taught (rejection sampling, 2 rounds):** 0.17 → 0.24 → 0.25. It only improves families the
+base model can already partly solve; stateful families yield no training data, and round 2 raised
+look-ahead to 22% of running solutions through a habit learned from verified, look-ahead-free samples.
+
 The 3B base model's main failure is not formatting but state handling: it doesn't carry a position from one
 bar to the next (13 of 30 labelled failures), followed by pandas indexing/API mistakes (9 of 30).
 

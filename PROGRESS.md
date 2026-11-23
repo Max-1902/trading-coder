@@ -14,9 +14,12 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 - **Phase 4 (LoRA on reference solutions): done.** 3B + SFT-A adapter: pass@1 **0.67 [0.58, 0.76]**,
   Test-ID 0.93 [0.86, 0.99], Test-OOD **0.00**. That beats the best non-fine-tuned model (7B 3-shot,
   0.53) by +0.14 [+0.01, +0.27] overall, entirely through Test-ID; on Test-OOD it is far behind (0 vs 0.36).
-- **Phase 5, round 1: done.** 3B + RS-r1: pass@1 0.24 [0.16, 0.33] (+0.07 [+0.02, +0.13] vs base),
-  Test-OOD 0.00. Self-training only improves families the base model can already partly solve.
-- Next: round 2 (sampling with the round-1 adapter), then decide on round 3.
+- **Phase 5 (rejection sampling): done after 2 rounds.** pass@1 0.17 (base) → 0.24 (round 1) → 0.25
+  (round 2); round 2 adds nothing measurable (+0.01 [−0.05, +0.07]), so no round 3. Self-training
+  never reaches the stateful families, Test-OOD stays 0, and round 2 **raised look-ahead from 1% to 22%**
+  of running solutions, although every training sample passed the look-ahead check.
+- Phase 6 (stretch) skipped for now. The 7B LoRA is the open question (the only model with OOD signal).
+- Next: Phase 7 report.
 
 ## Phase 5 results: rejection sampling
 
@@ -62,6 +65,64 @@ examples, so a weak signal; it suggests memorizing the 92 samples rather than le
   collapse: the base 3B is already at 0 on both held-out families, and neither method moves it off the
   floor. That's a limitation of using the 3B for the OOD question; the 7B (0.36 with 3 examples) is
   the only model here with OOD signal.
+
+**Round 2 sampling** (`results/rs_r2_sample`, round-1 adapter, 200 new tasks × 8 at T=0.8, 64 min):
+406/1,600 samples pass (25%, up from 6.5%), 282 unique kept. Training set = rounds 1+2: 358 train / 25 valid.
+
+| Family | R1 solved | R2 solved | R2 kept |
+|---|---|---|---|
+| ma_cross | 22/25 | 25/25 | 97 |
+| vol_filter | 15/25 | 25/25 | 100 |
+| combo | 12/25 | 13/25 | 52 |
+| oscillator | 2/25 | 9/25 | 18 |
+| breakout | 2/25 | 6/25 | 7 |
+| zscore | 0/25 | 5/25 | 8 |
+| stop_tp, holding | 0/25 | **0/25** | **0** |
+
+The round-1 adapter opens z-score and lifts breakout/oscillator a little, but the data stays dominated
+by the two easiest families (ma_cross + vol_filter = 69%), and stop-loss and holding still yield nothing.
+One training example (1,042 tokens) was truncated to the 1,024-token limit.
+
+**Round 2 training:** validation loss 0.307 → 0.155 over 100 steps (25 validation examples), training
+loss 0.237 → 0.111; still dropping slowly, no sign of the memorization seen with SFT-A (val 0.002).
+
+**Pass@1 per round** (zero-shot, greedy; Test-OOD 0.00 in every row):
+
+| | pass@1 | Test-ID | ma_cross | vol_filter | combo | oscillator | breakout / zscore / stop_tp / holding | Look-ahead* |
+|---|---|---|---|---|---|---|---|---|
+| 3B base | 0.17 [0.10, 0.25] | 0.24 | 0.78 | 0.67 | 0.44 | 0.00 | 0 / 0 / 0 / 0 | 0.05 |
+| RS round 1 | 0.24 [0.16, 0.33] | 0.33 | 0.89 | 0.78 | 0.67 | 0.33 | 0 / 0 / 0 / 0 | 0.01 |
+| RS round 2 | 0.25 [0.17, 0.34] | 0.35 | 0.78 | 1.00 | 0.67 | 0.33 | 0 / 0 / 0 / 0 | **0.22** |
+| SFT-A | 0.67 [0.58, 0.76] | 0.93 | 1.00 | 1.00 | 0.67 | 1.00 | 1.00 / 1.00 / 0.78 / 1.00 | 0.00 |
+
+\* share of running solutions flagged for look-ahead.
+
+- Round 2 vs round 1: +0.01 [−0.05, +0.07], i.e. no measurable gain. The curve is flat after one round,
+  so I stopped at two (the brief allows 2–3) instead of spending another ~1.7 h of GPU time on round 3.
+- 5 z-score and 6 breakout training samples did not lift those families on the test set (still 0).
+- **Look-ahead jumped from 1% to 22% of running solutions (17 of 79)**: 12 trailing-stop, 3 stop-loss,
+  2 breakout. Every one changes bar 0, and every one is the negative-index wraparound from the baseline
+  taxonomy: a loop from `i = 0` reading `indicator.iat[i-1]`, which at `i = 0` is the **last** bar.
+  - *First suspicion: the checker let look-ahead into the training data.* I checked: 18 of the 383
+    training samples use `x[i-1]` in a loop starting at 0. In all but one, `x` is the model's own
+    position series, whose last element is still 0 when read at `i = 0`, so it's harmless. The one
+    sample that applies it to an indicator (`prior_55_highest_close.iloc[i-1]`) is guarded by a
+    warm-up counter (`if warm_up_count < 55: continue`); re-running the check on it gives 0/96 hits.
+    No look-ahead sample entered training.
+  - *What happened instead:* the model learned an idiom (`x[i-1]` in a loop from 0) that is harmless in
+    every verified sample and carried it to new tasks, where it indexes indicators without a guard.
+    **Behavioural verification filters samples, not habits:** a sample can be correct and look-ahead-free
+    and still teach a pattern that produces look-ahead elsewhere. SFT-A didn't show this because its
+    references never index with `i-1` at `i = 0`.
+- **Against the hypotheses:** "fine-tuning on look-ahead-filtered data reduces look-ahead" is
+  contradicted for rejection sampling (5% → 1% → 22%) and holds for SFT-A (5% → 0%). "Families where
+  the base model never passes produce no data" holds, and it's exactly the stateful families, the ones
+  that matter most.
+
+**Answer to the Phase 5 question.** Self-generated data did not avoid the Test-OOD collapse, but it
+couldn't have shown that here: the 3B is at 0 on both held-out families with every method. On Test-ID,
+reference SFT is far stronger (0.93 vs 0.35), because it covers the families the model can't yet solve.
+Self-training only sharpens what the model can already do.
 
 ## Phase 5: rejection sampling (setup)
 
