@@ -13,6 +13,23 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 - Still open for Phase 3: pass@5 with sampling (T=0.8) for the 3B and the best baseline.
 - Next: Phase 4, LoRA on reference solutions (3B).
 
+## Phase 4: LoRA on reference solutions (setup)
+
+- **Data (`gen/make_sft.py` → `data/sft_a/`).** 3,051 train and 149 valid examples in the same
+  zero-shot chat format as evaluation; valid holds out whole parameter combinations. Before writing,
+  it re-runs the leakage check against the test set and verifies 160 random references with the full
+  harness and the independent loop implementation (0 problems). Examples average 624 tokens (max 961).
+  - *Bug caught:* the first token count said 2 tokens per example. transformers 5 returns a dict from
+    `apply_chat_template(tokenize=True)`, so I was counting its keys. Now it tokenizes the rendered
+    text instead.
+- **Config (`train/lora_sft_a.yaml`).** Rank-16 LoRA on the top 16 of 36 layers; loss on the answer
+  only (`mask_prompt`); batch 4, 500 steps (2,000 examples, ~0.65 epoch, since templated data should
+  converge fast); AdamW, lr 1e-4 with 25 warmup steps and cosine decay; max sequence length 1024;
+  gradient checkpointing on to keep memory low.
+- **Model selection rule.** The final adapter is what gets evaluated. The checkpoints saved every 100
+  steps may only be chosen by validation loss, never by test-set pass rate, otherwise the test set
+  leaks into training decisions.
+
 ## Phase 3 results (greedy pass@1, 95% bootstrap CI over tasks)
 
 | Model | Shots | pass@1 | Test-ID (72) | Test-OOD (28) | Runs | Look-ahead* |
