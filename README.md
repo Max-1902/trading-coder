@@ -12,6 +12,17 @@ and does not look ahead (changing future bars never changes past positions).
 
 Status: work in progress. See [PROGRESS.md](PROGRESS.md) for the running log.
 
+## Baselines (no fine-tuning, greedy pass@1, 95% bootstrap CI over 100 tasks)
+
+| Model (4-bit MLX) | 0-shot | 3-shot |
+|---|---|---|
+| Qwen2.5-Coder-3B | 0.17 [0.10, 0.25] | 0.26 [0.18, 0.35] |
+| Qwen2.5-Coder-7B | 0.11 [0.05, 0.17] | 0.53 [0.43, 0.63] |
+| Llama-3.1-8B-Instruct | 0.10 [0.05, 0.16] | 0.40 [0.30, 0.50] |
+
+The 3B's main failure is not formatting but state handling: it doesn't carry a position from one
+bar to the next (13 of 30 labelled failures), followed by pandas indexing/API mistakes (9 of 30).
+
 ## Setup
 
 ```bash

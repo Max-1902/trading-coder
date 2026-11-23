@@ -4,14 +4,89 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 
 ## Current state (2026-11-22)
 
-- **Phases 0–2 done.** Harness + benchmark: 159/159 tests pass.
+- **Phases 0–2 done.** Harness + benchmark + extractor: 167/167 tests pass.
 - Benchmark: 100 test tasks (72 Test-ID over 8 families, 28 Test-OOD over Bollinger + trailing stop);
   3,200 training tasks generated; leakage check clean.
-- Phase 3 (baselines): pipeline built and checked end to end on an 8-task slice with all three
-  models. Full runs not done yet. I start them myself with gentle settings, one model at a time
-  (`scripts/run_baseline.sh`).
+- **Phase 3 (greedy baselines): done.** Six runs: 3 models × zero-shot / 3-shot, 100 tasks each.
+  Best non-fine-tuned model: Qwen 7B 3-shot at pass@1 0.53 [0.43, 0.63]. The fine-tuning target
+  (Qwen 3B) gets 0.17 zero-shot and 0.26 3-shot.
+- Still open for Phase 3: pass@5 with sampling (T=0.8) for the 3B and the best baseline.
+- Next: Phase 4, LoRA on reference solutions (3B).
 
-## Phase 3: baselines (in progress)
+## Phase 3 results (greedy pass@1, 95% bootstrap CI over tasks)
+
+| Model | Shots | pass@1 | Test-ID (72) | Test-OOD (28) | Runs | Look-ahead* |
+|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-3B | 0 | 0.17 [0.10, 0.25] | 0.24 [0.14, 0.33] | 0.00 | 0.82 | 0.05 |
+| Qwen2.5-Coder-3B | 3 | 0.26 [0.18, 0.35] | 0.26 [0.17, 0.36] | 0.25 [0.11, 0.43] | 0.70 | 0.00 |
+| Qwen2.5-Coder-7B | 0 | 0.11 [0.05, 0.17] | 0.14 [0.07, 0.22] | 0.04 [0.00, 0.11] | 0.94 | 0.02 |
+| Qwen2.5-Coder-7B | 3 | **0.53 [0.43, 0.63]** | 0.60 [0.49, 0.71] | 0.36 [0.18, 0.54] | 0.85 | 0.01 |
+| Llama-3.1-8B | 0 | 0.10 [0.05, 0.16] | 0.14 [0.07, 0.22] | 0.00 | 0.55 | 0.02 |
+| Llama-3.1-8B | 3 | 0.40 [0.30, 0.50] | 0.56 [0.44, 0.67] | 0.00 | 0.84 | 0.01 |
+
+\* share of *running* solutions flagged for look-ahead. Run times (batch 2, 1 s pause): 3B 7–10 min,
+7B 11–18 min, Llama 20–27 min; peak MLX memory 2.7 / 5.6 / 6.0 GB.
+
+**What the numbers say (and don't).**
+- *Zero-shot, model size barely matters.* All three sit at 0.10–0.17 with overlapping CIs. The 3B is
+  nominally ahead of the 7B (0.17 vs 0.11, paired difference −0.06 [−0.13, +0.01]), which is within
+  noise. The 7B almost always produces running code (94%) but gets the logic wrong (80 wrong_signals).
+- *3-shot helps the bigger models a lot and the 3B barely.* 7B: +0.42; Llama: +0.30; 3B: +0.09
+  [−0.02, +0.20], which is not distinguishable from 0.
+- *The 3B copies the examples instead of learning from them.* One example is a stop-loss task, one
+  an MA cross, one an oscillator. Splitting Test-ID by whether the family appears among the examples:
+
+  | Model | Example families (27) | Other ID families (45) |
+  |---|---|---|
+  | 3B 0-shot → 3-shot | 0.26 → 0.63 | **0.22 → 0.04** |
+  | 7B 0-shot → 3-shot | 0.19 → 0.70 | 0.11 → 0.53 |
+  | Llama 0-shot → 3-shot | 0.15 → 0.67 | 0.13 → 0.49 |
+
+  On families it has no example for, the 3B gets *worse* with examples. Reading its vol_filter and
+  combo answers: it pastes the examples' loop-and-state scaffold into stateless tasks (adding
+  position memory the rules forbid), invents warm-up cut-offs (`if t < 119: continue`) and misaligns
+  `np.diff` (499 values against 500 bars → IndexError, 11 times). The bigger models take the
+  conventions from the examples without copying the structure.
+  This matters for the headline comparison: the fair "no fine-tuning" bar for the 3B to beat is the
+  7B 3-shot at 0.53, and the 3-shot gains on the three example families are partly copying.
+- *Test-OOD is weak everywhere.* Llama 3-shot gets 0/28 on Bollinger and trailing stops, while it is
+  at 0.56 on Test-ID.
+- *Look-ahead is rare (0–5% of running solutions)*, lower than I expected. The cases that do occur
+  are not the textbook `shift(-1)` / `center=True`: see the failure taxonomy below.
+- *Some families sit at 0 for every model zero-shot* (holding, z-score, Bollinger). I checked these
+  for benchmark bugs before believing them. With 3 examples, z-score goes to 9/9 for both the 7B and
+  Llama, so the task is solvable as written. Holding stays at 0 for all six runs. I read the best
+  model's holding answers: the 7B tracks entry and exit correctly but never writes `pos[t] = state`,
+  so it returns all zeros; others re-enter on the exit bar or never hold. Several models first fail at
+  the same bar of holding-04 only because it is the first entry bar of that series. The prompt
+  spells out the bar arithmetic (`t` to `t+H-1`, flat on `t+H`), so I count these as model errors.
+
+**Failure taxonomy: Qwen 3B zero-shot** (30 of 83 failures, fixed random sample, each solution read
+and labelled; `results/baseline_qwen3b_0shot_*/failure_labels.json`).
+
+| Primary cause | n | What it looks like |
+|---|---|---|
+| State not carried / not held | 13 | checks `positions[i]` (still 0) instead of the previous state, or sets the position only on entry/exit bars and never holds it |
+| Indexing / API / name errors | 9 | `df.at[i, ...]` with an integer on a DatetimeIndex (4); parameter scoped inside a helper → `NameError` (2); invented `.ewindow()`; `.rolling` on a numpy array; `Timestamp + int` |
+| Warm-up handling | 4 | `if s.isnull().any(): return positions`, which returns all zeros because warm-up NaNs always exist (all 3 z-score failures); warm-up off by one bar |
+| Look-ahead | 3 | `iloc[i-1]` / `iloc[i-12]` at the start of the series wraps to the **last** bar (2); writes `signals[i-1] = 1` into the past (1) |
+| Holding-period logic | 1 | never holds |
+
+Contributing causes on top: sample std where population std was specified (all 6 Bollinger cases),
+RSI as a plain rolling mean instead of Wilder smoothing (5), "is above" instead of "crosses above" (4).
+
+Against the brief's hypotheses, so far:
+- *"Fine-tuning mostly fixes format/convention errors."* Format is not the problem: 99–100% of
+  answers come in one clean code block and 1 of 600 hit the token cap. The 3B's main failure is
+  **state handling** (13/30) and then **pandas indexing/API misuse** (9/30), with convention errors
+  mostly contributing rather than primary. Fine-tuning on references will have to fix a logic
+  pattern, not a format.
+- *"Look-ahead bugs are common in base models."* Not supported at these rates. The ones that occur
+  come from negative-index wrap-around, broadcasting the final state, and writing into past bars.
+  These patterns weren't in my hand-written test set; all three are now harness unit tests
+  (`negative_index_wrap`, `broadcast_final_state`, `writes_into_past_bar`), and each is flagged.
+
+## Phase 3: pipeline and setup
 
 **Pipeline.** `gen/sample.py` (batched MLX generation; config, git commit and versions logged next
 to the outputs; refuses to overwrite a run folder) → `gen/extract.py` (fenced, multi-block, unclosed

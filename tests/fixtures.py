@@ -178,6 +178,18 @@ BROKEN = {
                            "lookahead"),
     "last_bar_peek": ("sma_cross", _sma(tail="return pos if c.iloc[-1] > c.iloc[0] else -pos"), "lookahead"),
     "bfill_warmup": ("sma_cross", _sma(body_slow="c.rolling(30).mean().bfill()"), "lookahead"),
+    # look-ahead patterns seen in real baseline outputs (Phase 3)
+    "negative_index_wrap": ("trail_stop", TRAIL_STOP.replace(
+        "prior_high = df[\"close\"].rolling(20).max().shift(1).to_numpy()",
+        "rmax = df[\"close\"].rolling(20).max().to_numpy()\n"
+        "    prior_high = np.array([rmax[t - 1] for t in range(len(c))])"), "lookahead"),
+    "broadcast_final_state": ("trail_stop", TRAIL_STOP.replace(
+        "return pd.Series(pos, index=df.index)", "return pd.Series(pos[-1], index=df.index)"), "lookahead"),
+    "writes_into_past_bar": ("trail_stop", TRAIL_STOP.replace(
+        "        pos[t] = 1 if in_pos else 0",
+        "        pos[t] = 1 if in_pos else 0\n"
+        "        if in_pos and t > 0 and pos[t - 1] == 0:\n"
+        "            pos[t - 1] = 1"), "lookahead"),
     # shift(-1) on the prior high makes the entry impossible (bar t is inside its own
     # max), so the output never depends on the future: behaviourally not look-ahead.
     "trail_stop_shift_minus_1_inert": ("trail_stop", TRAIL_STOP.replace(".shift(1)", ".shift(-1)"), "wrong_signals"),
