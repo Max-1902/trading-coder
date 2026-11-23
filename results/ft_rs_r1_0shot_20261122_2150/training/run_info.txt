@@ -1,0 +1,2 @@
+git_commit: b4b6196b5a051db6bafd8af1792d8f6146ba101a  started: 2026-11-22 21:30:54  extra: --data data/rs_r1
+finished: 2026-11-22 21:50:14

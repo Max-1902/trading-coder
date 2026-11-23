@@ -14,8 +14,54 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
 - **Phase 4 (LoRA on reference solutions): done.** 3B + SFT-A adapter: pass@1 **0.67 [0.58, 0.76]**,
   Test-ID 0.93 [0.86, 0.99], Test-OOD **0.00**. That beats the best non-fine-tuned model (7B 3-shot,
   0.53) by +0.14 [+0.01, +0.27] overall, entirely through Test-ID; on Test-OOD it is far behind (0 vs 0.36).
-- Next: Phase 5, rejection sampling (self-taught data) — tests whether training on the model's own
-  verified code generalizes better than on the reference template.
+- **Phase 5, round 1: done.** 3B + RS-r1: pass@1 0.24 [0.16, 0.33] (+0.07 [+0.02, +0.13] vs base),
+  Test-OOD 0.00. Self-training only improves families the base model can already partly solve.
+- Next: round 2 (sampling with the round-1 adapter), then decide on round 3.
+
+## Phase 5 results: rejection sampling
+
+**Round 1 sampling** (`results/rs_r1_sample`, base 3B, 200 fresh training tasks × 8 samples at T=0.8):
+only 104/1,600 samples (6.5%) pass all checks; 101 unique kept after deduplication.
+
+| Family | Tasks solved (of 25) | Kept samples |
+|---|---|---|
+| ma_cross | 22 | 54 |
+| vol_filter | 15 | 18 |
+| combo | 12 | 25 |
+| breakout | 2 | 2 |
+| oscillator | 2 | 2 |
+| zscore, stop_tp, holding | **0** | **0** |
+
+- The limitation the brief anticipated, in a strong form: three of eight families, including every
+  stateful one except combo, produce **no** training data, because the base model never solves them.
+- Sampling at T=0.8 breaks a lot of code outright: 663 exceptions, 114 banned imports (mostly TA-Lib),
+  98 syntax errors, 79 module-level errors, 42 look-ahead.
+- *Bug caught:* the first filter run crashed with `RecursionError` in `ast.unparse`. One sample had
+  degenerated into a ~300-deep `.dropna().ewm(span=5).mean()` chain until the token cap. I was
+  normalizing every sample for deduplication; now only passing samples are normalized, there's a
+  fallback for code `ast` can't round-trip, and existing scores are reused (no rescoring of 1,600
+  samples).
+
+**Round 1 training** (`adapters/rs_r1`, 92 train / 9 valid, same config and 100 steps as SFT-A, i.e.
+~4 passes over the data): training loss 0.34 → 0.07, validation loss flat at 0.34–0.38 (on only 9
+examples, so a weak signal; it suggests memorizing the 92 samples rather than learning anything general).
+
+**Round 1 evaluation** (`results/ft_rs_r1_0shot_*`):
+
+| | pass@1 | Test-ID | Test-OOD | ma_cross | combo | vol_filter | oscillator | zscore / stop_tp / holding / breakout |
+|---|---|---|---|---|---|---|---|---|
+| 3B base | 0.17 | 0.24 | 0.00 | 0.78 | 0.44 | 0.67 | 0.00 | 0.00 |
+| 3B + RS-r1 | 0.24 [0.16, 0.33] | 0.33 | 0.00 | 0.89 | 0.67 | 0.78 | 0.33 | 0.00 |
+| 3B + SFT-A | 0.67 | 0.93 | 0.00 | 1.00 | 0.67 | 1.00 | 1.00 | 1.00 / 0.78 / 1.00 / 1.00 |
+
+- +0.07 [+0.02, +0.13] over the base model: small but the CI excludes 0. All of it comes from families
+  that had training data; oscillator went 0 → 0.33 from just 2 kept samples.
+- Self-training sharpens what the model can already do and cannot reach what it can't: the families
+  with zero samples stay at 0, exactly where SFT-A gains most.
+- **Test-OOD stays at 0.00**, so this round cannot answer whether own-style data avoids SFT-A's template
+  collapse: the base 3B is already at 0 on both held-out families, and neither method moves it off the
+  floor. That's a limitation of using the 3B for the OOD question; the 7B (0.36 with 3 examples) is
+  the only model here with OOD signal.
 
 ## Phase 5: rejection sampling (setup)
 

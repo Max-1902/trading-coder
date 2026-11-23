@@ -1,0 +1,14 @@
+{
+  "rounds": [
+    1
+  ],
+  "train": 92,
+  "valid": 9,
+  "by_family": {
+    "breakout": 2,
+    "combo": 25,
+    "ma_cross": 54,
+    "oscillator": 2,
+    "vol_filter": 18
+  }
+}
