@@ -23,9 +23,11 @@ Running log: decisions, what broke, how it was diagnosed. Newest state first.
     `apply_chat_template(tokenize=True)`, so I was counting its keys. Now it tokenizes the rendered
     text instead.
 - **Config (`train/lora_sft_a.yaml`).** Rank-16 LoRA on the top 16 of 36 layers; loss on the answer
-  only (`mask_prompt`); batch 4, 500 steps (2,000 examples, ~0.65 epoch, since templated data should
-  converge fast); AdamW, lr 1e-4 with 25 warmup steps and cosine decay; max sequence length 1024;
-  gradient checkpointing on to keep memory low.
+  only (`mask_prompt`); batch 4, 250 steps (1,000 examples, ~125 per family, ~0.33 epoch);
+  AdamW, lr 2e-4 with 15 warmup steps and cosine decay; max sequence length 1024; no gradient
+  checkpointing. I first planned 500 steps at lr 1e-4 with checkpointing (est. 40–70 min) and cut it
+  to fit a ~15–20 min training budget: half the steps, a higher learning rate, and no activation
+  recomputation.
 - **Model selection rule.** The final adapter is what gets evaluated. The checkpoints saved every 100
   steps may only be chosen by validation loss, never by test-set pass rate, otherwise the test set
   leaks into training decisions.

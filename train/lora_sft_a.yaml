@@ -10,13 +10,13 @@ num_layers: 16               # top 16 of 36 layers
 lora_parameters: {rank: 16, dropout: 0.0, scale: 20.0}
 batch_size: 4
 grad_accumulation_steps: 1
-iters: 500                   # 2,000 examples ~ 0.65 epoch of 3,051; templated data converges fast
-learning_rate: 1.0e-4
-lr_schedule: {name: cosine_decay, warmup: 25, warmup_init: 1.0e-6, arguments: [1.0e-4, 500, 1.0e-6]}
+iters: 250                   # 1,000 examples (~125 per family, ~0.33 epoch); templated data converges fast
+learning_rate: 2.0e-4
+lr_schedule: {name: cosine_decay, warmup: 15, warmup_init: 1.0e-6, arguments: [2.0e-4, 250, 1.0e-6]}
 max_seq_length: 1024         # longest example is 961 tokens
-grad_checkpoint: true        # keeps memory low on 16 GB; set false if the timing run shows headroom
+grad_checkpoint: false       # ~25-30% faster; set true if peak memory gets close to ~10 GB
 steps_per_report: 10
-steps_per_eval: 100
+steps_per_eval: 50
 val_batches: 10
-save_every: 100              # checkpoints at 100..500 to pick from without retraining
+save_every: 50               # checkpoints every 50 steps (pick only by validation loss)
 seed: 0
